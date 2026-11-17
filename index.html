@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Stem Studio · 브라우저 AI 분리 테스트</title>
+<title>Stem Studio · 음질 개선 테스트</title>
 <script src="coi-serviceworker.js"></script>
 <style>
 body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}
@@ -33,7 +33,7 @@ pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding
 <body>
 <main>
   <h1>✦ Stem <span class="purple">Studio</span></h1>
-  <p class="small">브라우저 AI 분리 테스트 · Demucs(htdemucs) · DRUMS / BASS / INST / VOCALS<br>음악은 서버로 올라가지 않고 이 폰 안에서만 처리됩니다.</p>
+  <p class="small">음질 개선 테스트 · Demucs(htdemucs) · DRUMS / BASS / INST / VOCALS<br>음악은 서버로 올라가지 않고 이 폰 안에서만 처리됩니다.</p>
 
   <div class="panel">
     <strong>① 기기 점검</strong>
@@ -50,6 +50,12 @@ pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding
       <option value="webgpu">WebGPU만</option>
       <option value="wasm">CPU(WASM)만</option>
     </select></label>
+    <label class="small row">음질 모드 <select id="quality">
+      <option value="official">공식 Demucs 방식 (권장)</option>
+      <option value="hq">고음질 – 겹침 50% + shift 2회 (약 3배 시간)</option>
+      <option value="lib">기본 – 기존 성공 버전 방식 (비교용)</option>
+    </select></label>
+    <p class="small">원곡은 MP3 320kbps 이상, 가능하면 WAV/FLAC가 결과가 더 선명해요.</p>
     <button id="run" disabled>AI 스템 분리 시작</button>
     <div class="prog"><i id="bar"></i></div>
     <div id="status" class="small"></div>
@@ -57,6 +63,11 @@ pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding
 
   <div id="verify" class="panel" style="display:none"></div>
   <section id="tracks"></section>
+  <div class="panel" id="cmpBox" style="display:none">
+    <strong>WebGPU 정밀도 검사</strong>
+    <p class="small">같은 7.8초 구간을 폰 GPU(WebGPU)와 CPU로 각각 계산해서 결과가 같은지 확인해요. 음질 저하가 브라우저 GPU 계산 때문인지 가려낼 수 있어요. 1~5분 걸리고 폰이 뜨거워질 수 있어요.</p>
+    <button id="cmp" class="ghost">정밀도 검사 시작</button>
+  </div>
 
   <div class="panel">
     <strong>테스트 리포트</strong>

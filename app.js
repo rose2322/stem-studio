@@ -1,6 +1,7 @@
 // Stem Studio · 브라우저 AI 음원 분리 (Demucs htdemucs, onnxruntime-web)
 import { DemucsProcessor, CONSTANTS } from "./lib/demucs-web/index.js";
 import { STEMS, sliceForTest, verifySeparation, encodeWav, encodeMp3 } from "./analysis.js";
+import { separateOfficial, runSegment, TRACKS } from "./separate.js";
 
 const ORT_URL = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.all.mjs";
 const MODEL_URL = CONSTANTS.DEFAULT_MODEL_URL;
@@ -64,7 +65,7 @@ async function getModelBuffer() {
   return buf.buffer;
 }
 
-let ort = null, processor = null, engineUsed = null;
+let ort = null, processor = null, engineUsed = null, modelBufKeep = null;
 async function loadEngine(choice, onProgress) {
   if (!ort) {
     status("AI 실행 엔진 불러오는 중…");
@@ -73,6 +74,7 @@ async function loadEngine(choice, onProgress) {
     if (ort.env.webgpu) ort.env.webgpu.powerPreference = "high-performance";
   }
   const modelBuf = await getModelBuffer();
+  modelBufKeep = modelBuf;
   const order = choice === "wasm" ? ["wasm"] : choice === "webgpu" ? ["webgpu"] : (env.webgpu ? ["webgpu", "wasm"] : ["wasm"]);
   let lastErr = null;
   for (const ep of order) {
@@ -135,10 +137,17 @@ $("#run").addEventListener("click", async () => {
     if (!processor) processor = await loadEngine($("#engine").value, onProgress);
     else processor.onProgress = onProgress;
 
-    status(`AI 분리 시작 (${engineUsed === "webgpu" ? "WebGPU" : "CPU"})…`);
+    const mode = $("#quality").value;
+    const modeName = { lib: "기본(기존 성공 버전)", official: "공식 Demucs 방식", hq: "고음질(겹침50%·shift2)" }[mode];
+    report(`[음질 모드] ${modeName}`);
+    status(`AI 분리 시작 (${engineUsed === "webgpu" ? "WebGPU" : "CPU"} · ${modeName})…`);
     await sleep(50);
     tSep = performance.now();
-    result = await processor.separate(input.left, input.right);
+    if (mode === "lib") result = await processor.separate(input.left, input.right);
+    else result = await separateOfficial(processor.session, ort, input.left, input.right, {
+      overlap: mode === "hq" ? 0.5 : 0.25, shifts: mode === "hq" ? 2 : 1, onProgress,
+      onShifts: s => report(`[shift] ${s.map(x => (x / SR).toFixed(2) + "초").join(", ")}`),
+    });
     const sepSec = (performance.now() - tSep) / 1000;
     report(`[분리] 완료 ${sepSec.toFixed(1)}초 · 엔진 ${engineUsed} · 곡 1초당 ${(sepSec / secs).toFixed(2)}초 걸림`);
     report(`[분리] 3분 곡 예상: 약 ${fmt(sepSec / secs * 180)}`);
@@ -149,6 +158,7 @@ $("#run").addEventListener("click", async () => {
     v.rows.forEach(r => report(`[검증] ${r.label}: 비율 ${r.share.toFixed(1)}% · 크기 ${r.rmsDb.toFixed(1)}dB · 원곡과 상관 ${r.corrIn.toFixed(2)}`));
     report(`[판정] ${v.pass ? "실제 분리 성공" : "분리 결과 이상"}`);
     showTracks();
+    $("#cmpBox").style.display = engineUsed === "webgpu" ? "block" : "none";
     bar(1);
     status(`완료! 전체 ${fmt((performance.now() - t0) / 1000)} 걸렸어요. 아래에서 트랙별로 들어보세요.`, v.pass ? "ok" : "bad");
   } catch (e) {
@@ -211,3 +221,37 @@ $("#copy").addEventListener("click", async () => {
 window.addEventListener("error", e => report("[오류] " + e.message));
 window.addEventListener("unhandledrejection", e => report("[오류] " + (e.reason && e.reason.message || e.reason)));
 diagnose();
+
+// WebGPU 정밀도 검사: 같은 7.8초 구간을 WebGPU와 CPU(WASM)로 각각 돌려 결과 차이를 잰다 ---------
+$("#cmp").addEventListener("click", async () => {
+  const btn = $("#cmp"); btn.disabled = true;
+  let cpu = null;
+  try {
+    const SEG = CONSTANTS.TRAINING_SAMPLES;
+    const off = Math.max(0, Math.floor((input.left.length - SEG) / 2));
+    const segL = new Float32Array(SEG), segR = new Float32Array(SEG);
+    segL.set(input.left.subarray(off, off + SEG)); segR.set(input.right.subarray(off, off + SEG));
+    status("정밀도 검사 1/2: WebGPU로 계산 중…");
+    let t = performance.now();
+    const g = await runSegment(processor.session, ort, segL, segR);
+    const tg = (performance.now() - t) / 1000;
+    status("정밀도 검사 2/2: CPU로 같은 구간 계산 중… (1~5분 걸릴 수 있어요)");
+    cpu = await ort.InferenceSession.create(modelBufKeep.slice(0), { executionProviders: ["wasm"], enableCpuMemArena: false, enableMemPattern: false, graphOptimizationLevel: "basic" });
+    t = performance.now();
+    const c = await runSegment(cpu, ort, segL, segR);
+    const tc = (performance.now() - t) / 1000;
+    const lines = TRACKS.map((name, k) => {
+      let e = 0, p = 0;
+      for (const ch of ["left", "right"]) for (let i = 0; i < SEG; i++) { const d = g[k][ch][i] - c[k][ch][i]; e += d * d; p += c[k][ch][i] ** 2; }
+      return { name: STEMS[k].label, snr: 10 * Math.log10(p / (e || 1e-30)) };
+    });
+    const worst = Math.min(...lines.map(l => l.snr));
+    lines.forEach(l => report(`[정밀도] ${l.name}: WebGPU와 CPU 결과 차이 ${l.snr.toFixed(1)} dB`));
+    report(`[정밀도] WebGPU ${tg.toFixed(1)}초 · CPU ${tc.toFixed(1)}초 (7.8초 구간)`);
+    const ok = worst >= 40;
+    report(`[정밀도 판정] ${ok ? "WebGPU 계산은 CPU와 사실상 같음 → 음질 저하 원인 아님" : worst >= 20 ? "작은 차이 있음 → 들어서 비교 필요" : "차이 큼 → WebGPU 계산이 음질을 떨어뜨리고 있음"}`);
+    status(`정밀도 검사 완료: 가장 큰 차이 ${worst.toFixed(1)} dB (40dB 이상이면 같다고 봐도 됨)`, ok ? "ok" : "bad");
+  } catch (e) {
+    report("[정밀도] 실패 " + (e && e.message || e)); status("정밀도 검사 실패: " + (e && e.message || e), "bad");
+  } finally { try { await cpu?.release(); } catch {} btn.disabled = false; }
+});
