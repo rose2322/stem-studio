@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>Stem Studio · 음질 개선 테스트</title>
+<title>Stem Studio · 모델 비교 테스트</title>
 <script src="coi-serviceworker.js"></script>
 <style>
 body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}
@@ -33,7 +33,7 @@ pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding
 <body>
 <main>
   <h1>✦ Stem <span class="purple">Studio</span></h1>
-  <p class="small">음질 개선 테스트 · Demucs(htdemucs) · DRUMS / BASS / INST / VOCALS<br>음악은 서버로 올라가지 않고 이 폰 안에서만 처리됩니다.</p>
+  <p class="small">모델 비교 테스트 · htdemucs / SCNet XL / BS-RoFormer SW · DRUMS / BASS / INST / VOCALS<br>음악은 서버로 올라가지 않고 이 폰 안에서만 처리됩니다.</p>
 
   <div class="panel">
     <strong>① 기기 점검</strong>
@@ -45,37 +45,36 @@ pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding
     <input id="file" type="file" accept="audio/*,.mp3">
     <p id="fileinfo" class="small">선택된 파일 없음</p>
     <label class="small row"><input type="checkbox" id="testMode" checked> 빠른 테스트: 30초 구간만 분리 (처음엔 이걸로 하세요)</label>
-    <label class="small row">AI 엔진 <select id="engine">
-      <option value="auto">자동 (WebGPU → 안 되면 CPU)</option>
-      <option value="webgpu">WebGPU만</option>
-      <option value="wasm">CPU(WASM)만</option>
-    </select></label>
-    <label class="small row">음질 모드 <select id="quality">
-      <option value="official">공식 Demucs 방식 (권장)</option>
-      <option value="hq">고음질 – 겹침 50% + shift 2회 (약 3배 시간)</option>
-      <option value="lib">기본 – 기존 성공 버전 방식 (비교용)</option>
-    </select></label>
     <p class="small">원곡은 MP3 320kbps 이상, 가능하면 WAV/FLAC가 결과가 더 선명해요.</p>
-    <button id="run" disabled>AI 스템 분리 시작</button>
+  </div>
+
+  <div class="panel">
+    <strong>③ AI 모델</strong><br><br>
+    <select id="model" style="width:100%;padding:10px;font-size:15px">
+      <option value="htdemucs">htdemucs – 기존 성공 버전 (172MB)</option>
+      <option value="scnet_xl_wide_v5">SCNet XL – 4트랙 전용 (115MB)</option>
+      <option value="bs_roformer_sw">BS-RoFormer SW – 최고 음질 후보 (351MB)</option>
+    </select>
+    <p id="modelinfo" class="small"></p>
+    <p class="small">같은 곡으로 모델을 하나씩 바꿔 가며 실행하면 아래에 결과가 쌓여서 비교할 수 있어요. 순서 추천: htdemucs → SCNet XL → BS-RoFormer.</p>
+    <button id="run" disabled>④ AI 스템 분리 시작</button>
     <div class="prog"><i id="bar"></i></div>
     <div id="status" class="small"></div>
   </div>
 
-  <div id="verify" class="panel" style="display:none"></div>
-  <section id="tracks"></section>
-  <div class="panel" id="cmpBox" style="display:none">
-    <strong>WebGPU 정밀도 검사</strong>
-    <p class="small">같은 7.8초 구간을 폰 GPU(WebGPU)와 CPU로 각각 계산해서 결과가 같은지 확인해요. 음질 저하가 브라우저 GPU 계산 때문인지 가려낼 수 있어요. 1~5분 걸리고 폰이 뜨거워질 수 있어요.</p>
-    <button id="cmp" class="ghost">정밀도 검사 시작</button>
-  </div>
+  <section id="compare"></section>
 
   <div class="panel">
     <strong>테스트 리포트</strong>
-    <p class="small">분리가 끝나거나 오류가 나면 아래 버튼으로 복사해서 Claude에게 붙여넣어 주세요.</p>
+    <p class="small">모델별 실행이 끝나거나 오류가 나면 복사해서 Claude에게 붙여넣어 주세요.</p>
     <button id="copy" class="ghost">리포트 복사</button>
     <pre id="report"></pre>
   </div>
-  <p class="small">AI 모델 파일(약 172MB)은 처음 한 번만 받고 이 폰에 저장해 둡니다. 가능하면 Wi-Fi에서 사용하세요.</p>
+  <div class="panel">
+    <strong>저장공간</strong>
+    <p class="small">모델 파일은 처음 한 번만 받고 폰에 저장돼요(셋 다 받으면 약 640MB). 가능하면 Wi-Fi에서 사용하세요.</p>
+    <button id="clear" class="ghost">저장된 모델 모두 지우기</button>
+  </div>
 </main>
 <script src="lib/lamejs/lame.min.js"></script>
 <script type="module" src="app.js"></script>
