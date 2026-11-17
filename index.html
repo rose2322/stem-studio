@@ -1,1 +1,157 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Stem Studio · 안전한 화면 시안</title><style>body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}main{max-width:650px;margin:auto;padding:20px}h1{font-size:27px}.purple{color:#c78aff}.panel{border:1px solid #30324c;border-radius:18px;padding:17px;margin:18px 0;background:#111426}.notice{color:#ffce91;font-size:14px;line-height:1.6}input{max-width:100%}button{border:0;border-radius:12px;padding:12px;background:#9b5df3;color:white;font-weight:700}button:disabled{background:#3b3c50;color:#aaa}.track{border:1px solid var(--c);border-radius:12px;padding:12px;margin:12px 0}.track strong{color:var(--c)}.wave{height:55px;background:repeating-linear-gradient(90deg,transparent 0 3px,var(--c) 4px 6px,transparent 7px 9px);opacity:.65;mask-image:linear-gradient(0deg,transparent,black 35%,black 65%,transparent)}.mix{height:90px;background:linear-gradient(90deg,#fa55dd,#ffa749,#c6ff56,#38e3d2,#797fff);mask-image:repeating-linear-gradient(90deg,transparent 0 3px,black 4px 7px,transparent 8px 11px);border-radius:8px}.small{font-size:13px;color:#9fa7bd}audio{width:100%}</style></head><body><main><h1>✦ Stem <span class="purple">Studio</span></h1><p class="small">4 STEMS · MP3 320kbps (목표 사양)</p><div class="panel"><p class="notice">안전한 UI 미리보기: 이 파일은 서버에 접속하거나 음악을 업로드하지 않습니다. AI 분리 및 MP3 저장은 아직 구현되지 않았습니다.</p><label>음악 파일 선택 (이 기기에서만 미리 듣기)<br><br><input id="file" type="file" accept="audio/*"></label><p id="filename" class="small">선택된 파일 없음</p><button disabled>AI 스템 분리 · 서버 연결 후 사용</button></div><div class="panel"><strong>MIX STEREO</strong><div class="mix" aria-label="장식용 무지개 파형"></div><p class="small">파형은 장식용입니다. 실제 음원 파형 분석은 미구현.</p><audio id="player" controls></audio></div><section id="tracks"></section><p class="small">이 시안은 다운로드한 파일을 브라우저에서 여는 로컬 미리보기입니다. 안전한 HTTPS 배포와 서버 설정은 별도 단계입니다.</p></main><script>const names=[['DRUMS','#b9ff4d'],['BASS','#ff923f'],['INST','#4aa8ff'],['VOCALS','#d77cff']];document.querySelector('#tracks').innerHTML=names.map(([n,c])=>`<div class="track" style="--c:${c}"><strong>${n}</strong><div class="wave" aria-hidden="true"></div><span class="small">분리 전 · 재생/저장 비활성화</span></div>`).join('');let url=null;document.querySelector('#file').addEventListener('change',e=>{const f=e.target.files[0];if(url)URL.revokeObjectURL(url);if(!f)return;url=URL.createObjectURL(f);document.querySelector('#player').src=url;document.querySelector('#filename').textContent=f.name+' · 로컬 미리듣기만 가능';});</script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Stem Studio · AI 음원 분리</title>
+<style>
+body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}
+main{max-width:650px;margin:auto;padding:20px}
+h1{font-size:27px;margin-bottom:4px}.purple{color:#c78aff}
+.panel{border:1px solid #30324c;border-radius:18px;padding:17px;margin:18px 0;background:#111426}
+.small{font-size:13px;color:#9fa7bd;line-height:1.6}
+input[type=file]{max-width:100%;color:#ccc}
+input[type=text]{width:100%;box-sizing:border-box;padding:10px;border-radius:10px;border:1px solid #30324c;background:#080a15;color:#fff;font-size:15px}
+button{border:0;border-radius:12px;padding:14px;background:#9b5df3;color:#fff;font-weight:700;font-size:16px;width:100%;margin-top:12px}
+button:disabled{background:#3b3c50;color:#aaa}
+button.ghost{background:transparent;border:1px solid #9b5df3;color:#c78aff;padding:10px;font-size:14px}
+#status{margin-top:12px;font-size:14px;color:#ffce91;line-height:1.6;white-space:pre-line}
+.bar{height:6px;background:#22243a;border-radius:3px;overflow:hidden;margin-top:8px;display:none}
+.bar i{display:block;height:100%;width:30%;background:#c78aff;animation:slide 1.4s infinite ease-in-out}
+@keyframes slide{0%{margin-left:-30%}100%{margin-left:100%}}
+.track{border:1px solid var(--c);border-radius:12px;padding:12px;margin:12px 0}
+.track strong{color:var(--c)}
+.track .row{display:flex;gap:8px;align-items:center;margin-top:8px}
+.track audio{flex:1;min-width:0}
+.track a{color:var(--c);font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap}
+.track.off{opacity:.45}
+audio{width:100%}
+details summary{cursor:pointer;color:#9fa7bd;font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <h1>✦ Stem <span class="purple">Studio</span></h1>
+  <p class="small">AI 4 STEMS · DRUMS / BASS / INST / VOCALS · MP3 320kbps</p>
+
+  <div class="panel">
+    <label>원곡 선택<br><br><input id="file" type="file" accept="audio/*,.mp3"></label>
+    <p id="filename" class="small">선택된 파일 없음</p>
+    <audio id="player" controls></audio>
+    <button id="run" disabled>AI 스템 분리 시작</button>
+    <div class="bar" id="bar"><i></i></div>
+    <div id="status"></div>
+  </div>
+
+  <section id="tracks"></section>
+  <button id="saveAll" class="ghost" style="display:none">4개 파일 모두 저장</button>
+
+  <div class="panel">
+    <details id="settings">
+      <summary>서버 설정 (처음 한 번만)</summary>
+      <p class="small">Hugging Face Space 주소를 <b>아이디/스페이스이름</b> 형식으로 입력하세요. 예: rose2322/stem-studio-ai</p>
+      <input id="space" type="text" placeholder="아이디/스페이스이름" autocomplete="off" autocapitalize="off">
+      <button id="saveSpace" class="ghost">저장</button>
+    </details>
+  </div>
+  <p class="small">음악 파일은 분리를 위해 내 Hugging Face 무료 서버로 전송됩니다. 무료 GPU는 하루 사용 시간이 정해져 있어요.</p>
+</main>
+
+<script type="module">
+import { Client, handle_file } from "https://cdn.jsdelivr.net/npm/@gradio/client@1/dist/index.min.js";
+
+const DEFAULT_SPACE = "rose2322/stem-studio-ai";
+const STEMS = [["DRUMS","#b9ff4d"],["BASS","#ff923f"],["INST","#4aa8ff"],["VOCALS","#d77cff"]];
+const $ = s => document.querySelector(s);
+
+const store = {
+  get(){ try { return localStorage.getItem("stemSpace") || DEFAULT_SPACE; } catch { return DEFAULT_SPACE; } },
+  set(v){ try { localStorage.setItem("stemSpace", v); } catch {} }
+};
+$("#space").value = store.get();
+$("#saveSpace").onclick = () => {
+  const v = $("#space").value.trim().replace(/^https?:\/\/huggingface\.co\/spaces\//, "");
+  store.set(v); $("#space").value = v; status("서버 주소를 저장했어요: " + v);
+};
+
+function status(t){ $("#status").textContent = t; }
+function busy(on){ $("#bar").style.display = on ? "block" : "none"; $("#run").disabled = on || !file; }
+
+function renderTracks(results){
+  $("#tracks").innerHTML = STEMS.map(([n,c],i) => {
+    const r = results && results[i];
+    return `<div class="track ${r ? "" : "off"}" style="--c:${c}">
+      <strong>${n}</strong>
+      <div class="row">${r
+        ? `<audio controls preload="none" src="${r.url}"></audio><a href="#" data-i="${i}">저장</a>`
+        : `<span class="small">분리 전</span>`}</div></div>`;
+  }).join("");
+  $("#saveAll").style.display = results ? "block" : "none";
+}
+renderTracks(null);
+
+let file = null, objUrl = null, results = null, baseName = "song";
+$("#file").addEventListener("change", e => {
+  file = e.target.files[0] || null;
+  if (objUrl) URL.revokeObjectURL(objUrl);
+  if (!file) { $("#filename").textContent = "선택된 파일 없음"; busy(false); return; }
+  objUrl = URL.createObjectURL(file);
+  $("#player").src = objUrl;
+  baseName = file.name.replace(/\.[^.]+$/, "");
+  $("#filename").textContent = `${file.name} · ${(file.size/1048576).toFixed(1)}MB`;
+  results = null; renderTracks(null); status(""); busy(false);
+});
+
+async function download(i){
+  const r = results[i];
+  const name = `${baseName}_${STEMS[i][0]}.mp3`;
+  const blob = await (await fetch(r.url)).blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+$("#tracks").addEventListener("click", e => {
+  const i = e.target.dataset.i; if (i === undefined) return;
+  e.preventDefault(); download(+i).catch(err => status("저장 실패: " + err.message));
+});
+$("#saveAll").onclick = async () => {
+  for (let i = 0; i < 4; i++) { await download(i); await new Promise(r => setTimeout(r, 700)); }
+};
+
+$("#run").onclick = async () => {
+  if (!file) return;
+  const space = store.get();
+  busy(true); results = null; renderTracks(null);
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    if (!$("#status").dataset.lock) status(`처리 중… ${s}초 경과\n(서버가 잠들어 있었다면 깨우는 데 1~3분 더 걸려요)`);
+  }, 1000);
+  try {
+    status("서버에 연결하는 중…");
+    const client = await Client.connect(space);
+    const job = client.submit("/separate", [handle_file(file)]);
+    for await (const msg of job) {
+      if (msg.type === "status" && msg.stage === "error") throw new Error(msg.message || "서버 오류");
+      if (msg.type === "status" && msg.queue && msg.position > 0) {
+        $("#status").dataset.lock = "1"; status(`대기열 ${msg.position + 1}번째…`);
+      } else { delete $("#status").dataset.lock; }
+      if (msg.type === "data") { results = msg.data; break; }
+    }
+    if (!results || results.length !== 4) throw new Error("결과 파일 4개를 받지 못했어요.");
+    renderTracks(results);
+    status(`완료! ${Math.round((Date.now() - t0)/1000)}초 걸렸어요. 각 트랙을 들어보고 저장하세요.`);
+  } catch (err) {
+    const m = String(err && err.message || err);
+    status(/quota/i.test(m)
+      ? "오늘 무료 GPU 사용 시간을 다 썼어요. 24시간 뒤 다시 시도해 주세요.\n" + m
+      : "분리 실패: " + m + "\n서버 설정의 Space 주소와 ZeroGPU 설정을 확인해 주세요.");
+  } finally {
+    clearInterval(tick); delete $("#status").dataset.lock; busy(false);
+  }
+};
+</script>
+</body>
+</html>

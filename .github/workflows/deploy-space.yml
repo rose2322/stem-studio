@@ -1,0 +1,39 @@
+name: Hugging Face Space 배포
+
+# space/ 폴더가 바뀌면 Hugging Face Space로 자동 업로드합니다.
+# 필요한 설정 (GitHub 저장소 Settings → Secrets and variables → Actions):
+#   Secrets  → HF_TOKEN : Hugging Face 'Write' 토큰
+#   Variables → HF_SPACE : 아이디/스페이스이름 (예: rose2322/stem-studio-ai)
+on:
+  push:
+    branches: [feature/ai-separation, main]
+    paths: ["space/**", ".github/workflows/deploy-space.yml"]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Upload space/ to Hugging Face
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_SPACE: ${{ vars.HF_SPACE }}
+        run: |
+          if [ -z "$HF_TOKEN" ] || [ -z "$HF_SPACE" ]; then
+            echo "::error::HF_TOKEN(Secret) 또는 HF_SPACE(Variable)가 설정되지 않았습니다."
+            exit 1
+          fi
+          pip install -q huggingface_hub
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          space = os.environ["HF_SPACE"]
+          api.upload_folder(repo_id=space, repo_type="space", folder_path="space",
+                            commit_message="Deploy from GitHub " + os.environ.get("GITHUB_SHA", "")[:7])
+          print("업로드 완료: https://huggingface.co/spaces/" + space)
+          PY
