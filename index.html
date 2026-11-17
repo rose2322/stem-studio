@@ -1,1 +1,72 @@
-<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>Stem Studio · 안전한 화면 시안</title><style>body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}main{max-width:650px;margin:auto;padding:20px}h1{font-size:27px}.purple{color:#c78aff}.panel{border:1px solid #30324c;border-radius:18px;padding:17px;margin:18px 0;background:#111426}.notice{color:#ffce91;font-size:14px;line-height:1.6}input{max-width:100%}button{border:0;border-radius:12px;padding:12px;background:#9b5df3;color:white;font-weight:700}button:disabled{background:#3b3c50;color:#aaa}.track{border:1px solid var(--c);border-radius:12px;padding:12px;margin:12px 0}.track strong{color:var(--c)}.wave{height:55px;background:repeating-linear-gradient(90deg,transparent 0 3px,var(--c) 4px 6px,transparent 7px 9px);opacity:.65;mask-image:linear-gradient(0deg,transparent,black 35%,black 65%,transparent)}.mix{height:90px;background:linear-gradient(90deg,#fa55dd,#ffa749,#c6ff56,#38e3d2,#797fff);mask-image:repeating-linear-gradient(90deg,transparent 0 3px,black 4px 7px,transparent 8px 11px);border-radius:8px}.small{font-size:13px;color:#9fa7bd}audio{width:100%}</style></head><body><main><h1>✦ Stem <span class="purple">Studio</span></h1><p class="small">4 STEMS · MP3 320kbps (목표 사양)</p><div class="panel"><p class="notice">안전한 UI 미리보기: 이 파일은 서버에 접속하거나 음악을 업로드하지 않습니다. AI 분리 및 MP3 저장은 아직 구현되지 않았습니다.</p><label>음악 파일 선택 (이 기기에서만 미리 듣기)<br><br><input id="file" type="file" accept="audio/*"></label><p id="filename" class="small">선택된 파일 없음</p><button disabled>AI 스템 분리 · 서버 연결 후 사용</button></div><div class="panel"><strong>MIX STEREO</strong><div class="mix" aria-label="장식용 무지개 파형"></div><p class="small">파형은 장식용입니다. 실제 음원 파형 분석은 미구현.</p><audio id="player" controls></audio></div><section id="tracks"></section><p class="small">이 시안은 다운로드한 파일을 브라우저에서 여는 로컬 미리보기입니다. 안전한 HTTPS 배포와 서버 설정은 별도 단계입니다.</p></main><script>const names=[['DRUMS','#b9ff4d'],['BASS','#ff923f'],['INST','#4aa8ff'],['VOCALS','#d77cff']];document.querySelector('#tracks').innerHTML=names.map(([n,c])=>`<div class="track" style="--c:${c}"><strong>${n}</strong><div class="wave" aria-hidden="true"></div><span class="small">분리 전 · 재생/저장 비활성화</span></div>`).join('');let url=null;document.querySelector('#file').addEventListener('change',e=>{const f=e.target.files[0];if(url)URL.revokeObjectURL(url);if(!f)return;url=URL.createObjectURL(f);document.querySelector('#player').src=url;document.querySelector('#filename').textContent=f.name+' · 로컬 미리듣기만 가능';});</script></body></html>
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Stem Studio · 브라우저 AI 분리 테스트</title>
+<script src="coi-serviceworker.js"></script>
+<style>
+body{margin:0;background:#080a15;color:#f5f3ff;font-family:system-ui,sans-serif}
+main{max-width:650px;margin:auto;padding:18px}
+h1{font-size:26px;margin:6px 0}.purple{color:#c78aff}
+.panel{border:1px solid #30324c;border-radius:18px;padding:16px;margin:16px 0;background:#111426}
+.small{font-size:13px;color:#9fa7bd;line-height:1.6}
+.warn{color:#ffce91}.ok{color:#9dff8a}.bad{color:#ff7b8a}
+input[type=file]{max-width:100%;color:#ccc}
+select{background:#080a15;color:#fff;border:1px solid #30324c;border-radius:8px;padding:6px}
+button{border:0;border-radius:12px;padding:14px;background:#9b5df3;color:#fff;font-weight:700;font-size:16px;width:100%;margin-top:12px}
+button:disabled{background:#3b3c50;color:#aaa}
+button.ghost{background:transparent;border:1px solid #9b5df3;color:#c78aff;padding:10px;font-size:14px}
+button.mini{width:auto;padding:8px 10px;font-size:13px;margin:0}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.prog{height:8px;background:#22243a;border-radius:4px;overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;width:0;background:#c78aff;transition:width .3s}
+#status{margin-top:10px;font-size:14px;line-height:1.6;white-space:pre-line}
+.track{border:1px solid var(--c);border-radius:12px;padding:12px;margin:12px 0}
+.track strong{color:var(--c)}
+audio{width:100%;margin-top:8px}
+table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:5px;border-bottom:1px solid #22243a;text-align:left}
+pre{white-space:pre-wrap;font-size:12px;color:#c9cde0;background:#080a15;padding:10px;border-radius:10px;max-height:260px;overflow:auto}
+</style>
+</head>
+<body>
+<main>
+  <h1>✦ Stem <span class="purple">Studio</span></h1>
+  <p class="small">브라우저 AI 분리 테스트 · Demucs(htdemucs) · DRUMS / BASS / INST / VOCALS<br>음악은 서버로 올라가지 않고 이 폰 안에서만 처리됩니다.</p>
+
+  <div class="panel">
+    <strong>① 기기 점검</strong>
+    <div id="diag" class="small">점검 중…</div>
+  </div>
+
+  <div class="panel">
+    <strong>② 원곡 선택</strong><br><br>
+    <input id="file" type="file" accept="audio/*,.mp3">
+    <p id="fileinfo" class="small">선택된 파일 없음</p>
+    <label class="small row"><input type="checkbox" id="testMode" checked> 빠른 테스트: 30초 구간만 분리 (처음엔 이걸로 하세요)</label>
+    <label class="small row">AI 엔진 <select id="engine">
+      <option value="auto">자동 (WebGPU → 안 되면 CPU)</option>
+      <option value="webgpu">WebGPU만</option>
+      <option value="wasm">CPU(WASM)만</option>
+    </select></label>
+    <button id="run" disabled>AI 스템 분리 시작</button>
+    <div class="prog"><i id="bar"></i></div>
+    <div id="status" class="small"></div>
+  </div>
+
+  <div id="verify" class="panel" style="display:none"></div>
+  <section id="tracks"></section>
+
+  <div class="panel">
+    <strong>테스트 리포트</strong>
+    <p class="small">분리가 끝나거나 오류가 나면 아래 버튼으로 복사해서 Claude에게 붙여넣어 주세요.</p>
+    <button id="copy" class="ghost">리포트 복사</button>
+    <pre id="report"></pre>
+  </div>
+  <p class="small">AI 모델 파일(약 172MB)은 처음 한 번만 받고 이 폰에 저장해 둡니다. 가능하면 Wi-Fi에서 사용하세요.</p>
+</main>
+<script src="lib/lamejs/lame.min.js"></script>
+<script type="module" src="app.js"></script>
+</body>
+</html>
